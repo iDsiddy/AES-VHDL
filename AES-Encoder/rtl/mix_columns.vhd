@@ -15,10 +15,10 @@ architecture Behavioral of mix_columns is
     signal m30, m31, m32, m33 : std_logic_vector(7 downto 0); 
 begin
 
-s0 <= in_word(7 downto 0);
-s1 <= in_word(15 downto 8);
-s2 <= in_word(23 downto 16);
-s3 <= in_word(31 downto 24);
+s0 <= in_word(31 downto 24);
+s1 <= in_word(23 downto 16);
+s2 <= in_word(15 downto 8);
+s3 <= in_word(7 downto 0);
 
 m20 <= std_logic_vector(unsigned(s0) sll 1) xor x"1B" when (s0(7) = '1') else std_logic_vector(unsigned(s0) sll 1);
 m21 <= std_logic_vector(unsigned(s1) sll 1) xor x"1B" when (s1(7) = '1') else std_logic_vector(unsigned(s1) sll 1);

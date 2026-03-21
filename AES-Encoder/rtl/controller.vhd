@@ -5,39 +5,41 @@ use IEEE.NUMERIC_STD.ALL;
 entity controller is
     port (
         clk, rst, load : in  std_logic;
-        state_en, key_en, final_rnd, done : out std_logic;
+        init, state_en, key_en, final_rnd, done : out std_logic;
         rnd_no : out std_logic_vector(3 downto 0)
     );
 end controller;
 
 architecture Behavioral of controller is
+    type fsm_state is (IDLE, INIT, ROUND, FINAL, DONE_ST);
+    signal current_state, next_state : fsm_state;
+
     signal rnd_count : unsigned(3 downto 0);
 begin
 
     -- Output round number
     rnd_no <= std_logic_vector(rnd_count);
 
-    process(clk, rst)
+    seq: process(clk, rst)
     begin
         if rst = '1' then
-            rnd_count <= (others => '0');
-            done      <= '0';
+            current_state <= IDLE;
+            rnd_count     <= (others => '0');
 
         elsif (clk'event and clk = '1') then
-            if load = '1' then
-                -- Initial AddRoundKey
-                rnd_count <= to_unsigned(1, 4);
-                done <= '0';
+            current_state <= next_state;
 
-            elsif rnd_count >= 1 and rnd_count < 10 then
-                -- Round Increment
+            -- Increment round counter only during ROUND state
+            if current_state = INIT then
+                rnd_count <= to_unsigned(1, 4);
+
+            elsif current_state = ROUND then    
                 rnd_count <= rnd_count + 1;
 
-            elsif rnd_count = 10 then
-                -- Hold rnd_count at 10
-                done <= '1';
+            elsif current_state = IDLE then
+                rnd_count <= (others => '0'); 
 
-            end if;
+            end if;        
         end if;
     end process;
 
