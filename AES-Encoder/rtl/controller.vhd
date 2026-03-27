@@ -43,8 +43,77 @@ begin
         end if;
     end process;
 
-    state_en  <= '1' when (rnd_count >= 1 and rnd_count <= 10) else '0';
-    key_en    <= '1' when (rnd_count >= 1 and rnd_count <= 10) else '0';
-    final_rnd <= '1' when rnd_count = 10 else '0';
+    next_logic: process(current_state, load, rnd_count)
+    begin
+        case current_state is
+            when IDLE =>
+                if load = '1' then
+                    next_state <= INIT;
+                else
+                    next_state <= IDLE;
+                end if;
+
+            when INIT =>
+            -- Round 0: latch plaintext XOR master_key
+                next_state <= ROUND;
+
+            when ROUND =>
+                if rnd_count = 9 then
+                    next_state <= FINAL;
+                else
+                    next_state <= ROUND;
+                end if;
+
+            when FINAL =>
+                next_state <= DONE_ST;
+
+            when DONE_ST =>
+                if load = '1' then
+                    next_state <= INIT;
+                else
+                    next_state <= DONE_ST;
+                end if;
+
+            when others =>
+                next_state <= IDLE;
+        end case;
+    end process;
+
+    output_logic: process(current_state, rnd_count)
+    begin
+        -- Default outputs
+        init <= '0';
+        state_en <= '0';
+        key_en <= '0';
+        final_rnd <= '0';
+        done <= '0';
+
+        case current_state is
+            when IDLE =>
+                null; -- All outputs remain at default
+
+            when INIT =>
+                -- Load plaintext XOR master_key into state reg
+                -- key_en asserted here to preload master_key into key reg
+                init     <= '1';
+                state_en <= '1';
+                key_en   <= '1';
+                
+            when ROUND =>
+                state_en <= '1'; -- Enable state updates
+                key_en <= '1';   -- Enable round key generation
+
+            when FINAL =>
+                state_en  <= '1';
+                key_en    <= '1';
+                final_rnd <= '1';   -- Signal for final round (no MixColumns)
+
+            when DONE_ST =>
+                done <= '1'; -- Indicate encryption is complete
+
+            when others =>
+                null; -- All outputs remain at default
+        end case;
+    end process;
 
 end Behavioral;

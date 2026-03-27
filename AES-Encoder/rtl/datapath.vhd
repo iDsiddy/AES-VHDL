@@ -25,10 +25,10 @@ end datapath;
 
 architecture Behavioral of datapath is
 
-    signal sb_out, sr_out, mc_out, pre_ark  : std_logic_vector(127 downto 0);
-    signal sreg_in, sreg_out                : std_logic_vector(127 downto 0);
-    signal kreg_out                         : std_logic_vector(127 downto 0);
-    signal ark_out                          : std_logic_vector(127 downto 0);
+    signal sb_out, sr_out, mc_out, pre_ark : std_logic_vector(127 downto 0);
+    signal sreg_in, sreg_out               : std_logic_vector(127 downto 0);
+    signal kreg_in, kreg_out               : std_logic_vector(127 downto 0);
+    signal ark_out                         : std_logic_vector(127 downto 0);
 
     component sub_bytes
         port (
@@ -61,10 +61,13 @@ architecture Behavioral of datapath is
 
 begin
 
-    -- MUX: load plaintext on round 0, feedback on rounds 1-10
+    -- MUX: load plaintext XOR master_key on round 0, feedback on rounds 1-10
     sreg_in <= (plaintext xor master_key) when init = '1' else ark_out;
 
-    -- State register (enabled by controller)
+    -- MUX: load master_key on round 0, next_key from key schedule on rounds 1-10
+    kreg_in <= master_key when init = '1' else next_key;
+
+    -- State register
     state_reg : process(clk, rst)
     begin
         if rst = '1' then
@@ -76,14 +79,14 @@ begin
         end if;
     end process;
 
-    -- Key register (enabled by controller)
+    -- Key register
     key_reg : process(clk, rst)
     begin
         if rst = '1' then
             kreg_out <= (others => '0');
         elsif rising_edge(clk) then
             if key_en = '1' then
-                kreg_out <= next_key;
+                kreg_out <= kreg_in;  -- fixed: was next_key directly
             end if;
         end if;
     end process;
@@ -100,7 +103,7 @@ begin
         output => sr_out
     );
 
-    -- Stage 3: MixColumns (bypassed on final round)
+    -- Stage 3: MixColumns (4 word-parallel, bypassed on final round)
     mc_gen : for i in 0 to 3 generate
         mc_inst : entity work.mix_columns
             port map (
@@ -118,7 +121,7 @@ begin
         output  => ark_out
     );
 
-    -- Drive outputs
+    -- Outputs (sample state_out only when done = '1' from controller)
     state_out <= sreg_out;
     key_out   <= kreg_out;
 
