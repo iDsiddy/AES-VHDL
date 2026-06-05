@@ -678,3 +678,4 @@ All modules have been verified with comprehensive testbenches:
 - **Algorithm**: Rijndael cipher (Joan Daemen, Vincent Rijmen)
 - **S-box**: Rijndael S-box (8×8 substitution table)
 - **Galois Field**: GF(2^8) with irreducible polynomial x^8 + x^4 + x^3 + x + 1
+

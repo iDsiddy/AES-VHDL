@@ -1,7 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use IEEE.NUMERIC_BIT.ALL;
 use work.ALL;
 
 entity device is 
@@ -42,8 +41,8 @@ architecture Behavioral of device is
         port (
             clk, rst : in std_logic;
             state_en, key_en, final_rnd, init : in std_logic;
-            rnd_no : in std_logic_vector(3 downto 0);
             plaintext, master_key : in std_logic_vector(127 downto 0);
+            next_key : in std_logic_vector(127 downto 0);
             state_out, key_out : out std_logic_vector(127 downto 0)
         );
     end component;
@@ -80,9 +79,9 @@ begin
             key_en => key_en,
             final_rnd => final_rnd,
             init => init,
-            rnd_no => rnd_no,
             plaintext => plaintext,
             master_key => master_key,
+            next_key => next_key,
             state_out => state_out,
             key_out => key_out
         );

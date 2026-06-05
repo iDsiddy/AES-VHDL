@@ -4,7 +4,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity controller is
     port (
-        clk, rst, load : in  std_logic;
+        clk, rst, start : in  std_logic;
         init, state_en, key_en, final_rnd, done : out std_logic;
         rnd_no : out std_logic_vector(3 downto 0)
     );
@@ -43,11 +43,11 @@ begin
         end if;
     end process;
 
-    next_logic: process(current_state, load, rnd_count)
+    next_logic: process(current_state, start, rnd_count)
     begin
         case current_state is
             when IDLE =>
-                if load = '1' then
+                if start = '1' then
                     next_state <= INIT;
                 else
                     next_state <= IDLE;
@@ -68,7 +68,7 @@ begin
                 next_state <= DONE_ST;
 
             when DONE_ST =>
-                if load = '1' then
+                if start = '1' then
                     next_state <= INIT;
                 else
                     next_state <= DONE_ST;

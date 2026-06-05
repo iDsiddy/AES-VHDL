@@ -3,15 +3,18 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity key_schedule is
     port (
-        round_key_in  : in  std_logic_vector(127 downto 0);
+        clk, rst      : in  std_logic;
+        key_en        : in  std_logic;
         rnd_no        : in  std_logic_vector(3 downto 0);
-        round_key_out : out std_logic_vector(127 downto 0)
+        prev_key      : in  std_logic_vector(127 downto 0);
+        next_key      : out std_logic_vector(127 downto 0)
     );
 end key_schedule;
 
-architecture Behavioral of key_sched is
+architecture Behavioral of key_schedule is
     -- Input round key words
     signal w0, w1, w2, w3 : std_logic_vector(31 downto 0);
+    signal w0_reg, w1_reg, w2_reg, w3_reg : std_logic_vector(31 downto 0);
     
     -- RotWord and SubWord outputs
     signal rot_out, sub_out : std_logic_vector(31 downto 0);
@@ -32,11 +35,29 @@ architecture Behavioral of key_sched is
 
 begin
     
+    -- Register key enable
+    key_reg : process(clk, rst)
+    begin
+        if rst = '1' then
+            w0_reg <= (others => '0');
+            w1_reg <= (others => '0');
+            w2_reg <= (others => '0');
+            w3_reg <= (others => '0');
+        elsif rising_edge(clk) then
+            if key_en = '1' then
+                w0_reg <= nw0;
+                w1_reg <= nw1;
+                w2_reg <= nw2;
+                w3_reg <= nw3;
+            end if;
+        end if;
+    end process;
+    
     -- Split input round key into 4 words
-    w0 <= round_key_in(127 downto 96);
-    w1 <= round_key_in(95  downto 64);
-    w2 <= round_key_in(63  downto 32);
-    w3 <= round_key_in(31  downto  0);
+    w0 <= prev_key(127 downto 96);
+    w1 <= prev_key(95  downto 64);
+    w2 <= prev_key(63  downto 32);
+    w3 <= prev_key(31  downto  0);
     
     -- RotWord: rotate w3 left by one byte
     -- [b0, b1, b2, b3] -> [b1, b2, b3, b0]
@@ -79,15 +100,15 @@ begin
     end process;
 
     -- g() function: SubWord XOR Rcon
-    g_out <= sub_out xor rcon_val;
+    g_val <= sub_out xor rcon_val;
 
     -- Key expansion XOR chain
-    nw0 <= w0 xor g_out;
+    nw0 <= w0 xor g_val;
     nw1 <= w1 xor nw0;
     nw2 <= w2 xor nw1;
     nw3 <= w3 xor nw2;
 
     -- Reassemble output round key
-    round_key_out <= nw0 & nw1 & nw2 & nw3;
+    next_key <= w0_reg & w1_reg & w2_reg & w3_reg;
     
 end architecture Behavioral;
