@@ -47,15 +47,13 @@ architecture Behavioral of device is
         );
     end component;
 
-    component key_schedule is
-        port (
-            clk, rst : in std_logic;
-            key_en : in std_logic;
-            rnd_no : in std_logic_vector(3 downto 0);
-            prev_key : in std_logic_vector(127 downto 0);
-            next_key : out std_logic_vector(127 downto 0)
-        );
-    end component;
+component key_schedule is
+    port (
+        rnd_no   : in  std_logic_vector(3 downto 0);
+        prev_key : in  std_logic_vector(127 downto 0);
+        next_key : out std_logic_vector(127 downto 0)
+    );
+end component;
 begin
 
     ctrl : controller
@@ -88,10 +86,7 @@ begin
 
     ks : key_schedule
         port map (
-            clk => clk,
-            rst => rst,
-            key_en => key_en,
-            rnd_no => rnd_no,
+            rnd_no   => rnd_no,
             prev_key => key_out,
             next_key => next_key
         );

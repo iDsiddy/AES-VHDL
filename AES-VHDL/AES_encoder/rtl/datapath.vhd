@@ -1,19 +1,16 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-use work.all;
-
 entity datapath is
     port (
-        -- Clock & reset
         clk        : in  std_logic;
         rst        : in  std_logic;
-        -- Control signals (from controller, thin 1-bit wires)
+        -- Control Signals
         state_en   : in  std_logic;
         key_en     : in  std_logic;
         final_rnd  : in  std_logic;
-        init       : in  std_logic;  -- selects plaintext on round 0
-        -- Data inputs
+        init       : in  std_logic;
+        -- Inputs 
         plaintext  : in  std_logic_vector(127 downto 0);
         master_key : in  std_logic_vector(127 downto 0);
         next_key   : in  std_logic_vector(127 downto 0);
@@ -27,8 +24,9 @@ architecture Behavioral of datapath is
 
     signal sb_out, sr_out, mc_out, pre_ark : std_logic_vector(127 downto 0);
     signal sreg_in, sreg_out               : std_logic_vector(127 downto 0);
-    signal kreg_in, kreg_out               : std_logic_vector(127 downto 0);
+    signal kreg_out                        : std_logic_vector(127 downto 0);
     signal ark_out                         : std_logic_vector(127 downto 0);
+    signal ark_key                         : std_logic_vector(127 downto 0);
 
     component sub_bytes
         port (
@@ -61,11 +59,8 @@ architecture Behavioral of datapath is
 
 begin
 
-    -- MUX: load plaintext XOR master_key on round 0, feedback on rounds 1-10
+    -- State MUX: plaintext XOR master_key on init, round feedback otherwise
     sreg_in <= (plaintext xor master_key) when init = '1' else ark_out;
-
-    -- MUX: load master_key on round 0, next_key from key schedule on rounds 1-10
-    kreg_in <= master_key when init = '1' else next_key;
 
     -- State register
     state_reg : process(clk, rst)
@@ -79,14 +74,20 @@ begin
         end if;
     end process;
 
-    -- Key register
+    -- Key register: holds previous round key for key schedule to expand from
+    -- On init: load master_key so key schedule can produce round key 1
+    -- On rounds: load next_key (round key just produced) for next expansion
     key_reg : process(clk, rst)
     begin
         if rst = '1' then
             kreg_out <= (others => '0');
         elsif rising_edge(clk) then
             if key_en = '1' then
-                kreg_out <= kreg_in;  -- fixed: was next_key directly
+                if init = '1' then
+                    kreg_out <= master_key;
+                else
+                    kreg_out <= next_key;
+                end if;
             end if;
         end if;
     end process;
@@ -103,7 +104,7 @@ begin
         output => sr_out
     );
 
-    -- Stage 3: MixColumns (4 word-parallel, bypassed on final round)
+    -- Stage 3: MixColumns (bypassed on final round)
     mc_gen : for i in 0 to 3 generate
         mc_inst : entity work.mix_columns
             port map (
@@ -114,15 +115,19 @@ begin
 
     pre_ark <= sr_out when final_rnd = '1' else mc_out;
 
+    -- AddRoundKey uses next_key on rounds 1-10 (freshly computed this cycle)
+    -- On init cycle the state is loaded directly so ark_out is not used
+    ark_key <= master_key when init = '1' else next_key;
+
     -- Stage 4: AddRoundKey
     ark : add_rndkey port map (
         in_word => pre_ark,
-        key     => kreg_out,
+        key     => ark_key,
         output  => ark_out
     );
 
-    -- Outputs (sample state_out only when done = '1' from controller)
-    state_out <= sreg_out;
+    -- key_out feeds back into key_schedule as prev_key
     key_out   <= kreg_out;
+    state_out <= sreg_out;
 
 end Behavioral;
